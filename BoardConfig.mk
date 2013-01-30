@@ -8,7 +8,6 @@ BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/semc/smultron/config
 # Kernel
 TARGET_KERNEL_SOURCE := kernel/semc/msm7x30
 TARGET_KERNEL_CONFIG := cyanogen_smultron_defconfig
-#TARGET_PREBUILT_KERNEL := device/semc/smultron/prebuilt/kernel
 TARGET_KERNEL_CUSTOM_TOOLCHAIN := arm-eabi-4.4.3
 
 TARGET_RECOVERY_INITRC := device/semc/smultron/recovery/init.rc
