@@ -3,7 +3,7 @@
 -include device/semc/mogami-common/BoardConfigCommon.mk
 
 # Bluetooth
-BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/semc/smultron/config
+BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/semc/smultron/bluetooth
 
 # Kernel
 TARGET_KERNEL_SOURCE := kernel/semc/msm7x30
