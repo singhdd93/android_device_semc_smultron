@@ -15,3 +15,4 @@
 #
 
 add_lunch_combo cm_smultron-eng
+add_lunch_combo cm_smultron-userdebug
