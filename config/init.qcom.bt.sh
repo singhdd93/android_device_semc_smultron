@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+# Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -42,6 +42,12 @@ logi ()
   /system/bin/log -t $LOG_TAG -p i "$LOG_NAME $@"
 }
 
+# add logw
+logw ()
+{
+  /system/bin/log -t $LOG_TAG -p w "$LOG_NAME $@"
+}
+
 failed ()
 {
   loge "$1: exit code $2"
@@ -50,18 +56,18 @@ failed ()
 
 start_hciattach ()
 {
-  echo 1 > $BLUETOOTH_SLEEP_PATH
-  /system/bin/hciattach -n $QSOC_DEVICE $QSOC_TYPE $QSOC_BAUD &
+  /system/bin/hciattach -n $BTS_DEVICE $BTS_TYPE $BTS_BAUD &
   hciattach_pid=$!
   logi "start_hciattach: pid = $hciattach_pid"
+  echo 1 > $BLUETOOTH_SLEEP_PATH
 }
 
 kill_hciattach ()
 {
+  echo 0 > $BLUETOOTH_SLEEP_PATH
   logi "kill_hciattach: pid = $hciattach_pid"
   ## careful not to kill zero or null!
   kill -TERM $hciattach_pid
-  echo 0 > $BLUETOOTH_SLEEP_PATH
   # this shell doesn't exit now -- wait returns for normal exit
 }
 
@@ -79,32 +85,75 @@ do
 done
 shift $(($OPTIND-1))
 
-QSOC_DEVICE=${1:-"/dev/ttyHS0"}
-QSOC_TYPE=${2:-"any"}
-QSOC_BAUD=${3:-"3000000"}
+# Note that "hci_qcomm_init -e" prints expressions to set the shell variables
+# BTS_DEVICE, BTS_TYPE, BTS_BAUD, and BTS_ADDRESS.
 
-# QC QSoC FW download not used for TI chip
-if false ; then
-/system/bin/hci_qcomm_init -d $QSOC_DEVICE -s $QSOC_BAUD 
+#Selectively Disable sleep
+BOARD=`getprop ro.board.platform`
 
-exit_code_hci_qcomm_init=$?
+POWER_CLASS=`getprop qcom.bt.dev_power_class`
+
+#find the transport type
+TRANSPORT=`getprop ro.qualcomm.bt.hci_transport`
+logi "Transport : $TRANSPORT"
+
+case $POWER_CLASS in
+  1) PWR_CLASS="-p 0" ;
+     logi "Power Class: 1";;
+  2) PWR_CLASS="-p 1" ;
+     logi "Power Class: 2";;
+  3) PWR_CLASS="-p 2" ;
+     logi "Power Class: CUSTOM";;
+  *) PWR_CLASS="";
+     logi "Power Class: Ignored. Default(1) used (1-CLASS1/2-CLASS2/3-CUSTOM)";
+     logi "Power Class: To override, Before turning BT ON; setprop qcom.bt.dev_power_class <1 or 2 or 3>";;
+esac
+
+# for wcn3660, we set power class 2
+eval $(/system/bin/hci_qcomm_init -e -p 1 && echo "exit_code_hci_qcomm_init=0" || echo "exit_code_hci_qcomm_init=$?")
+# eval $(/system/bin/hci_qcomm_init -e $PWR_CLASS && echo "exit_code_hci_qcomm_init=0" || echo "exit_code_hci_qcomm_init=1")
 
 case $exit_code_hci_qcomm_init in
-  0) logi "Bluetooth QSoC firmware download succeeded";;
-  *) failed "Bluetooth QSoC firmware download failed" $exit_code_hci_qcomm_init;;
+  0) logi "== allenou, Bluetooth QSoC firmware download succeeded, $BTS_DEVICE $BTS_TYPE $BTS_BAUD $BTS_ADDRESS";;
+  2) logw "== allenou, BT fd open failed. Is it the case to skip initializing chip again?";;
+  *) failed "== allenou, Bluetooth QSoC firmware download failed" $exit_code_hci_qcomm_init;;
 esac
-else
-  QSOC_TYPE="texas"
-  logi "TI 1271 BT starting"
-fi
 
 # init does SIGTERM on ctl.stop for service
 trap "kill_hciattach" TERM INT
 
-start_hciattach
+case $TRANSPORT in
+    "smd")
+        # HTC_BT remove
+        #echo 1 > /sys/module/hci_smd/parameters/hcismd_set
 
-wait $hciattach_pid
+        # HTC_BT add begin
+        # This action sometimes fails due to race condition in smd driver, add retry mechanism
+        for retry_count in 1 2 3 4 5; do
+            echo 1 > /sys/module/hci_smd/parameters/hcismd_set
+            #logi "enable HCI SMD trial: $retry_count"
+            case `cat /sys/module/hci_smd/parameters/hcismd_set 2>/dev/null` in
+                "1")
+                   # enable ok
+                   break;;
+                "0")
+                   # enable failed, retry
+                   sleep 1;;
+                *)
+                   # Maybe kernel does not support "get node value" feature, bypass retry
+                   break;;
+            esac
+        done
+        # HTC_BT add end
 
-logi "Bluetooth stopped"
+     ;;
+     *)
+        logi "start hciattach"
+        start_hciattach
+
+        wait $hciattach_pid
+        logi "Bluetooth stopped"
+     ;;
+esac
 
 exit 0
