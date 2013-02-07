@@ -53,8 +53,8 @@ echo 1,30,255,54,52,1,65 > $dev/lcd-backlight/als/curve  # ALS curve for group1
 echo 2,48,0,128,128,4,10 > $dev/button-backlight/als/curve  # ALS curve for group2
 echo 0,0,0,0,0,0,0 > $dev/keyboard-backlight/als/curve  # ALS curve for group2
 echo 3,2,2,0 > $dev/lcd-backlight/als/params  #[gain],[filter_up],[filter_down],[offset]
-echo 0 > $dev/lcd-backlight/als/enable  #Sensor on/off. 1 = on, reg 90h
-echo 0 > $dev/button-backlight/als/enable  #Sensor on/off. 1 = on, reg 90h
+echo 1 > $dev/lcd-backlight/als/enable  #Sensor on/off. 1 = on, reg 90h
+echo 1 > $dev/button-backlight/als/enable  #Sensor on/off. 1 = on, reg 90h
 echo 0 > $dev/keyboard-backlight/als/enable  #Sensor on/off. 1 = on, reg 90h
 echo 500 > $dev/button-backlight/max_current
 echo 5000 > $dev/keyboard-backlight/max_current
